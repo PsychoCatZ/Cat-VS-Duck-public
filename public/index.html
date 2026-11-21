@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#192b29">
+  <title>Кот против Утки · НИИ ИИ DES</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/game.js"></script>
+</head>
+<body>
+<main class="game">
+  <header class="top">
+    <span class="brand">НИИ ИИ <strong>DES</strong></span>
+    <span id="mode" class="mode"></span>
+    <button id="new-duel" type="button">Новый поединок</button>
+  </header>
+  <div class="title">
+    <h1>Кот <em>против</em> Утки</h1>
+    <p>Кто кого перетроллит?</p>
+  </div>
+  <section class="stage" aria-label="Словесная дуэль">
+    <figure class="fighter cat">
+      <div class="cat-art" role="img" aria-label="Самодовольный Кот"></div>
+      <figcaption><strong>Кот</strong><span>Твой персонаж</span></figcaption>
+    </figure>
+    <section class="panel" aria-label="Переписка">
+      <div class="panel-head">
+        <h2>Поединок</h2>
+        <label><input id="score-toggle" type="checkbox"> Счёт</label>
+      </div>
+      <output id="score" hidden></output>
+      <ol id="history" aria-label="Реплики" role="log" aria-live="polite" tabindex="0"></ol>
+      <div class="controls">
+        <p id="status" role="status"></p>
+        <form id="composer">
+          <input id="message" aria-label="Реплика Кота" placeholder="Твой выпад…" maxlength="1000" required autocomplete="off">
+          <button class="send" type="submit">Отправить</button>
+        </form>
+        <div class="options">
+          <button id="initiative" type="button">Ход Утки</button>
+          <button id="retry" type="button" hidden>Повторить ход</button>
+          <button id="edit" type="button" hidden>Вернуть реплику в поле</button>
+        </div>
+      </div>
+    </section>
+    <figure class="fighter duck">
+      <canvas id="duck-art" width="887" height="887" role="img" aria-label="Утка"></canvas>
+      <figcaption><strong>Утка</strong><span id="emotion">Самодовольная ухмылка</span></figcaption>
+    </figure>
+  </section>
+</main>
+</body>
+</html>

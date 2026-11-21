@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  color: #fff1cf;
+  background: #192b29;
+  --ink: #211e19;
+  --cream: #fff1cf;
+  --yellow: #f9be53;
+  --teal: #a8ded0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 300px; }
+button, input { font: inherit; }
+button {
+  cursor: pointer;
+  border: 1px solid currentColor;
+  border-radius: .55rem;
+  padding: .55rem .85rem;
+  color: inherit;
+  background: transparent;
+  font-weight: 700;
+}
+button:hover:enabled { background: #f9be5330; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 3px solid #b36816; outline-offset: 3px; }
+[hidden] { display: none !important; }
+.game { max-width: 1440px; margin: auto; padding: 1rem clamp(1rem, 4vw, 4rem) 2rem; }
+.top { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.brand { letter-spacing: .16em; font-weight: 700; }
+.brand strong { color: var(--yellow); }
+.mode { margin-left: auto; color: var(--teal); font-size: .875rem; }
+.title { text-align: center; padding: clamp(1.3rem, 5vh, 3.5rem) 0 1.5rem; }
+h1 { font: 900 clamp(2.8rem, 8.5vw, 7.8rem)/.93 Georgia, serif; margin: 0; letter-spacing: -.075em; color: var(--yellow); text-shadow: 3px 4px #0e1715; }
+h1 em { color: var(--cream); font-size: .54em; letter-spacing: -.06em; }
+.title p { color: var(--teal); margin-bottom: 0; font-weight: 650; }
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, .78fr) minmax(340px, 1.4fr) minmax(0, .78fr);
+  align-items: center;
+  gap: clamp(.6rem, 2vw, 2rem);
+  background: radial-gradient(ellipse at center, #47776a, #284e46 70%, #203d37);
+  border: 1px solid #7da29466;
+  border-radius: 1.5rem;
+  padding: clamp(.7rem, 2vw, 1.8rem);
+}
+.fighter { min-width: 0; margin: 0; text-align: center; }
+.cat-art, canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  filter: drop-shadow(6px 9px 0 #16292188);
+}
+.cat-art { background: url('/characters.png') left center / 200% 100% no-repeat; }
+figcaption strong { display: block; font: 900 clamp(1.35rem, 3vw, 2.6rem)/1 Georgia, serif; margin: .4rem 0; }
+figcaption span { color: var(--teal); font-size: .875rem; display: block; min-height: 2.6em; }
+.panel { color-scheme: light; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 1rem; box-shadow: 5px 6px #142821; overflow: hidden; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid #221f1a39; }
+.panel-head h2 { font: 800 1.35rem Georgia, serif; margin: 0; }
+.panel-head label { display: flex; align-items: center; gap: .3rem; cursor: pointer; }
+.panel-head input { accent-color: #226359; width: 1rem; height: 1rem; }
+#score { display: block; text-align: center; padding: .4rem; background: #e9d9b4; font-weight: 750; }
+#history { min-height: 11rem; height: clamp(11rem, 34vh, 25rem); overflow: auto; list-style: none; margin: 0; padding: .85rem; }
+#history li { padding: .55rem .75rem; margin-bottom: .65rem; border-radius: .6rem; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; }
+#history strong { display: block; margin-bottom: .2rem; font-size: .875rem; }
+.duck-line { background: #d5e5c5; }
+.cat-line { background: #f5d797; margin-left: auto; }
+.controls { border-top: 1px solid #221f1a39; padding: .65rem .8rem .8rem; }
+#status { margin: 0 0 .5rem; font-size: .875rem; }
+#status:empty { display: none; }
+#composer { display: flex; gap: .45rem; }
+#message { width: 100%; min-width: 0; background: #fffaf0; padding: .65rem; color: var(--ink); border: 1px solid #66573d; border-radius: .55rem; }
+.send { background: var(--yellow); }
+.send:hover:enabled { background: #ffce79; }
+.options { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.options button { font-size: .875rem; }
+@media (max-width: 750px) {
+  .stage { grid-template-columns: 1fr 1fr; align-items: end; }
+  .panel { grid-column: 1 / -1; grid-row: 2; }
+  .fighter { width: min(100%, 175px); justify-self: center; }
+  .top { gap: .6rem; }
+  .top button { font-size: .875rem; }
+  #history { height: 29dvh; }
+}
+@media (max-width: 400px) {
+  .mode { order: 1; width: 100%; margin: 0; }
+  .top button { margin-left: auto; }
+}
