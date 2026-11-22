@@ -13,7 +13,7 @@
   <header class="top">
     <span class="brand">НИИ ИИ <strong>DES</strong></span>
     <span id="mode" class="mode"></span>
-    <button id="new-duel" type="button">Новый поединок</button>
+    <button id="new-duel" type="button">Начать срач сначала</button>
   </header>
   <div class="title">
     <h1>Кот <em>против</em> Утки</h1>
@@ -27,11 +27,24 @@
     <section class="panel" aria-label="Переписка">
       <div class="panel-head">
         <h2>Поединок</h2>
-        <label><input id="score-toggle" type="checkbox"> Счёт</label>
+        <div class="scoring">
+          <label><input id="score-toggle" type="checkbox"> Счёт</label>
+          <select id="referee" aria-label="Арбитр" hidden>
+            <option value="duck">Утка считает</option>
+            <option value="raccoon">Енот судит</option>
+          </select>
+        </div>
+      </div>
+      <div id="raccoon" hidden>
+        <canvas id="raccoon-art" width="256" height="256" role="img" aria-label="Енот"></canvas>
+        <div><strong>Енот</strong><p id="raccoon-mood"></p><p id="judge-status" role="status"></p>
+          <button id="judge-retry" type="button" hidden>Повторить оценку</button>
+        </div>
       </div>
       <output id="score" hidden></output>
       <ol id="history" aria-label="Реплики" role="log" aria-live="polite" tabindex="0"></ol>
       <div class="controls">
+        <p class="privacy">Для ответа часть переписки передаётся внешнему провайдеру модели.</p>
         <p id="status" role="status"></p>
         <form id="composer">
           <input id="message" aria-label="Реплика Кота" placeholder="Твой выпад…" maxlength="1000" required autocomplete="off">
@@ -39,6 +52,8 @@
         </form>
         <div class="options">
           <button id="initiative" type="button">Ход Утки</button>
+          <button id="cat-lead" type="button" hidden>Начать выпад Кота</button>
+          <button id="address" type="button" aria-pressed="false" hidden>Обратиться к Еноту</button>
           <button id="retry" type="button" hidden>Повторить ход</button>
           <button id="edit" type="button" hidden>Вернуть реплику в поле</button>
         </div>

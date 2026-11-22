@@ -1,17 +1,27 @@
 import { emotions } from './emotions.js'
+import { drawRaccoon, raccoonMoods, raccoonSprite } from './raccoon-face.js'
 
 const el = id => document.getElementById(id)
 const storageKey = 'des-cat-duck-v1'
-const fresh = (enabled = false) => ({ history: [], memory: '', score: { cat: 0, duck: 0 }, enabled, pending: 'opening' })
+const zero = () => ({ cat: 0, duck: 0 })
+const fresh = (enabled = false, referee = 'duck') => ({
+  history: [], memory: '', score: zero(), enabled, pending: 'opening',
+  referee, duel: crypto.randomUUID(), round: null, duckLead: null, raccoonScore: zero(), unjudged: [],
+})
 let state = fresh()
 let busy = false
+let airOpen = false
 let onlineMode
 let storageFailed = false
 let error = ''
+let judgeError = ''
+let judgingRound = null
+const judgingQueue = []
+let addressRaccoon = false
 
 try {
   const saved = JSON.parse(localStorage.getItem(storageKey))
-  if (saved && Array.isArray(saved.history)) state = saved
+  if (saved && Array.isArray(saved.history)) state = { ...state, ...saved }
 } catch {
   storageFailed = true
 }
@@ -94,7 +104,8 @@ function render() {
     const row = document.createElement('li')
     row.className = `${turn.role}-line`
     const name = document.createElement('strong')
-    name.textContent = turn.role === 'cat' ? 'Кот' : 'Утка'
+    name.textContent = turn.role === 'duck' ? 'Утка' : turn.role === 'raccoon' ?
+      (turn.verdict ? 'Вердикт Енота' : 'Енот') : turn.addressed ? 'Кот → Енот' : 'Кот'
     row.append(name, turn.text)
     rows.append(row)
   }
@@ -106,47 +117,134 @@ function render() {
   canvas.setAttribute('aria-label', `Утка — ${emotions[mood].toLowerCase()}`)
   drawFace(mood)
   el('score-toggle').checked = state.enabled
+  el('referee').hidden = !state.enabled
+  el('referee').value = state.referee
+  el('referee').disabled = busy
   el('score').hidden = !state.enabled
-  el('score').textContent = `Кот — ${state.score.cat} : ${state.score.duck} — Утка`
-  el('mode').textContent = onlineMode === false ? 'Демо · заготовленные реплики' : onlineMode ? 'ИИ-дуэль' : ''
+  const score = state.referee === 'raccoon' ? state.raccoonScore : state.score
+  el('score').textContent = `Кот — ${score.cat} : ${score.duck} — Утка`
+  const showRaccoon = state.enabled && state.referee === 'raccoon'
+  el('raccoon').hidden = !showRaccoon
+  const raccoonMood = state.history.findLast(turn => turn.role === 'raccoon')?.emotion || 'neutral'
+  drawRaccoon(el('raccoon-art'), raccoonMood)
+  el('raccoon-mood').textContent = raccoonMoods[raccoonMood]
+  el('judge-status').textContent = judgingRound ? 'Енот совещается с собой…' :
+    state.unjudged.length ? judgeError || 'Есть раунды без вердикта.' : ''
+  el('judge-retry').hidden = Boolean(judgingRound) || !state.unjudged.length
+  el('judge-retry').disabled = busy
+  el('address').hidden = !showRaccoon
+  el('address').disabled = busy || Boolean(state.pending) || Boolean(judgingRound)
+  el('address').setAttribute('aria-pressed', String(addressRaccoon))
+  const answeringDuck = showRaccoon && Boolean(state.duckLead)
+  el('message').placeholder = addressRaccoon ? 'Реплика Еноту…' :
+    answeringDuck ? 'Ответ на выпад Утки…' : 'Твой выпад…'
+  el('initiative').textContent = showRaccoon ? 'Выпад Утки' : 'Ход Утки'
+  el('cat-lead').hidden = !answeringDuck
+  el('cat-lead').disabled = busy || Boolean(state.pending)
+  el('mode').textContent = airOpen && onlineMode ? 'ИИ-дуэль' : 'Luna сейчас вне эфира'
   el('status').textContent = [
-    busy ? 'Утка готовит выпад…' : error,
+    busy ? ({ raccoon: 'Енот готовит ответ…', answer: 'Записываем ответ Кота…' }[state.pending] ||
+      'Утка готовит выпад…') : error,
     storageFailed ? 'Браузер не смог сохранить поединок.' : '',
   ].filter(Boolean).join(' ')
   el('message').disabled = busy || Boolean(state.pending)
   document.querySelector('.send').disabled = el('message').disabled
   el('initiative').disabled = busy || Boolean(state.pending)
   el('retry').hidden = busy || !state.pending
-  el('edit').hidden = busy || state.pending !== 'reply'
+  el('edit').hidden = busy || !['reply', 'raccoon', 'answer'].includes(state.pending)
   el('new-duel').disabled = busy
   el('score-toggle').disabled = busy
 }
 
 sprite.addEventListener('load', render)
+raccoonSprite.addEventListener('load', render)
+
+async function post(path, body) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error)
+  return result
+}
+
+async function judge(round) {
+  if (judgingRound || !round) return
+  const duel = state.duel
+  judgingRound = round
+  judgeError = ''
+  render()
+  try {
+    const result = await post('/api/judge', { duel, round })
+    if (state.duel !== duel) return
+    state.raccoonScore = result.score
+    state.unjudged = state.unjudged.filter(id => id !== round)
+    state.history.push({ role: 'raccoon', text: result.reply, emotion: result.emotion, verdict: true })
+    save()
+  } catch (failure) {
+    if (state.duel === duel) judgeError = failure.message + '. Оценка ожидает повтора.'
+  } finally {
+    if (state.duel === duel) {
+      judgingRound = null
+      render()
+      judge(judgingQueue.shift())
+    }
+  }
+}
 
 async function takeTurn(kind) {
   if (busy) return
+  if (['opening', 'initiative'].includes(kind) && state.enabled && state.referee === 'raccoon') {
+    state.round ??= crypto.randomUUID()
+  }
   state.pending = kind
   busy = true
   error = ''
   save()
   render()
+  let completedRound
   try {
-    const response = await fetch('/api/turn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        kind,
+    if (kind === 'raccoon') {
+      const result = await post('/api/raccoon', {
         history: state.history.slice(-12).map(({ role, text }) => ({ role, text })),
+      })
+      state.history.push({ role: 'raccoon', text: result.reply, emotion: result.emotion })
+    } else if (kind === 'answer') {
+      await post('/api/answer', {
+        duel: state.duel,
+        round: state.duckLead,
+        text: state.history.findLast(turn => turn.role === 'cat').text,
+      })
+      completedRound = state.duckLead
+      state.unjudged.push(completedRound)
+      state.duckLead = null
+    } else {
+      const publicVerdict = state.enabled && state.referee === 'raccoon' ?
+        state.history.findLast(turn => turn.verdict)?.text : undefined
+      const result = await post('/api/turn', {
+        kind,
+        history: state.history.filter(turn => turn.role !== 'raccoon' && !turn.addressed)
+          .slice(-12).map(({ role, text }) => ({ role, text })),
         memory: state.memory,
-        score: state.enabled ? state.score : null,
-      }),
-    })
-    const result = await response.json()
-    if (!response.ok) throw new Error(result.error)
-    state.history.push({ role: 'duck', text: result.reply, emotion: result.emotion, intensity: result.intensity })
-    if (result.winner) state.score[result.winner] += 1
-    state.memory = result.memory
+        score: state.enabled && state.referee === 'duck' ? state.score : null,
+        duel: state.duel,
+        round: state.round || undefined,
+        publicVerdict,
+      })
+      state.history.push({ role: 'duck', text: result.reply, emotion: result.emotion, intensity: result.intensity })
+      if (state.enabled && state.referee === 'duck' && result.winner) state.score[result.winner] += 1
+      state.memory = result.memory
+      if (kind === 'reply') {
+        completedRound = state.round
+        state.duckLead = null
+      } else {
+        state.duckLead = state.round
+      }
+      if (completedRound) state.unjudged.push(completedRound)
+      state.round = null
+    }
     state.pending = null
     save()
   } catch (failure) {
@@ -156,26 +254,59 @@ async function takeTurn(kind) {
     busy = false
     render()
   }
+  if (completedRound) {
+    if (judgingRound) judgingQueue.push(completedRound)
+    else judge(completedRound)
+  }
 }
 
 el('composer').addEventListener('submit', event => {
   event.preventDefault()
   const text = el('message').value.trim()
   if (!text || busy || state.pending) return
-  state.history.push({ role: 'cat', text })
+  if (addressRaccoon && judgingRound) return
+  state.history.push({ role: 'cat', text, addressed: addressRaccoon })
+  const raccoonRules = state.enabled && state.referee === 'raccoon'
+  const kind = addressRaccoon ? 'raccoon' : raccoonRules && state.duckLead ? 'answer' : 'reply'
+  if (kind === 'reply' && raccoonRules) state.round = crypto.randomUUID()
   el('message').value = ''
-  takeTurn('reply')
+  addressRaccoon = false
+  takeTurn(kind)
 })
 el('score-toggle').addEventListener('change', event => {
   state.enabled = event.target.checked
+  if (!state.enabled) addressRaccoon = false
   save()
   render()
 })
+el('referee').addEventListener('change', event => {
+  state.referee = event.target.value
+  addressRaccoon = false
+  save()
+  render()
+})
+el('address').addEventListener('click', () => {
+  addressRaccoon = !addressRaccoon
+  render()
+  el('message').focus()
+})
+el('judge-retry').addEventListener('click', () => judge(state.unjudged[0]))
 el('retry').addEventListener('click', () => takeTurn(state.pending))
 el('initiative').addEventListener('click', () => takeTurn('initiative'))
+el('cat-lead').addEventListener('click', () => {
+  state.duckLead = null
+  addressRaccoon = false
+  save()
+  render()
+  el('message').focus()
+})
 el('edit').addEventListener('click', () => {
-  el('message').value = state.history.pop().text
+  const index = state.history.findLastIndex(turn => turn.role === 'cat')
+  const [turn] = state.history.splice(index, 1)
+  el('message').value = turn.text
+  addressRaccoon = Boolean(turn.addressed) && state.enabled && state.referee === 'raccoon'
   state.pending = null
+  state.round = null
   error = ''
   save()
   render()
@@ -183,7 +314,11 @@ el('edit').addEventListener('click', () => {
 })
 el('new-duel').addEventListener('click', () => {
   if (state.history.length && !confirm('Начать заново? Реплики текущего поединка будут удалены.')) return
-  state = fresh(state.enabled)
+  state = fresh(state.enabled, state.referee)
+  judgingRound = null
+  judgingQueue.length = 0
+  judgeError = ''
+  addressRaccoon = false
   el('message').value = ''
   takeTurn('opening')
 })
@@ -201,14 +336,19 @@ busy = true
 render()
 try {
   const config = await fetch('/api/config')
-  if (config.ok) onlineMode = (await config.json()).live
+  if (config.ok) { const data=await config.json(); onlineMode=data.live; airOpen=Boolean(data.air?.open) }
 } catch {
   error = 'Сервер игры недоступен.'
 }
 busy = false
-if (!started && onlineMode !== undefined) {
+if (!started && onlineMode !== undefined && airOpen) {
   takeTurn('opening')
 } else {
-  if (state.pending && !error) error = 'Утка ещё не ответила на этот ход.'
+  if (state.pending && !error) error = 'Этот ход ещё ждёт ответа.'
   render()
 }
+
+setInterval(async () => {
+  try { const r=await fetch('/api/config'); const c=await r.json(); airOpen=Boolean(c.air?.open); onlineMode=c.live } catch { airOpen=false }
+  render()
+}, 5000)

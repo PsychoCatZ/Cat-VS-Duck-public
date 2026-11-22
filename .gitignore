@@ -1,2 +1,11 @@
 .env
+.env.*
+!.env.example
 node_modules/
+.duck-state/
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
